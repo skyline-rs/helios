@@ -7,20 +7,29 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-pub use update_protocol::UpdateResponse;
+use skyline_update::UpdateResponse;
 
-pub fn get_helios_path() -> PathBuf {
+fn get_helios_path() -> PathBuf {
     PathBuf::from(format!("sd:/helios/{:016X}", skyline::info::get_program_id()))
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Config {
+struct Config {
     pub name: String,
     pub version: String,
     pub server_ip: IpAddr,
 }
 
-pub fn file_discovery() -> Result<Vec<(UpdateResponse, PathBuf)>, io::Error> {
+struct Update {
+    response: UpdateResponse,
+    config_path: PathBuf,
+    ip: IpAddr,
+    config: Config,
+}
+
+type Updates = Vec<Update>;
+
+fn update_discovery() -> Result<Updates, io::Error> {
     // Get Helios path for current Application
     let helios_path = get_helios_path();
     println!("[helios] Path to discover: {:?}", helios_path);
@@ -31,7 +40,7 @@ pub fn file_discovery() -> Result<Vec<(UpdateResponse, PathBuf)>, io::Error> {
     }
 
     // Iterate through all the DirEntries
-    fs::read_dir(helios_path)?
+    fs::read_dir(&helios_path)?
         .map(|entry| {
             let entry = entry?;
 
@@ -41,9 +50,12 @@ pub fn file_discovery() -> Result<Vec<(UpdateResponse, PathBuf)>, io::Error> {
             }
 
             println!("About to read configuration");
+            
+            let config_path = helios_path.join(entry.path());
 
             // Read the configuration
-            let config: Config = open_config_toml(&entry.path()).unwrap();
+            let config: Config = open_config_toml(&config_path).unwrap();
+            let ip = config.server_ip;
 
             println!("Configuration read successfully");
 
@@ -54,14 +66,15 @@ pub fn file_discovery() -> Result<Vec<(UpdateResponse, PathBuf)>, io::Error> {
 
             println!("Finished asking server");
 
-            Ok(update.map(|x| (x, entry.path())))
+
+            Ok(update.map(|response| Update { response, config_path, ip, config } ))
         })
         .filter_map(|x| x.transpose())
         .collect()
 }
 
 
-pub fn open_config_toml<P: AsRef<Path> + std::fmt::Debug>(path: P) -> Option<Config>{
+fn open_config_toml<P: AsRef<Path> + std::fmt::Debug>(path: P) -> Option<Config>{
     println!("About to open configuration: {:#?}", path);
 
     match fs::read_to_string(path) {
@@ -85,7 +98,7 @@ pub fn open_config_toml<P: AsRef<Path> + std::fmt::Debug>(path: P) -> Option<Con
     }
 }
 
-pub fn update_config_toml<P: AsRef<Path>>(path: P, config: &Config) {
+fn update_config_toml<P: AsRef<Path>>(path: P, config: &Config) {
     println!("About to update configuration");
 
     // Convert the confix to a string
@@ -97,15 +110,49 @@ pub fn update_config_toml<P: AsRef<Path>>(path: P, config: &Config) {
 
 }
 
-#[skyline::main(name = "helios")]
-pub fn main() {
-    match file_discovery() {
-        Ok(_) => {},
-        Err(error) => {
-            println!("{}", error)
-        },
+fn install(updates: &Updates) -> Result<(), ()> {
+    for Update { response, ip, .. } in updates {
+        skyline_update::install_update(*ip, response);
     }
 
-    // Should probably restart if mods were updated?
-    //skyline::nn::oe::RestartProgramNoArgs();
+    Ok(())
+}
+
+fn update_versions(updates: &Updates) -> Result<(), ()> {
+    for Update { response, config_path, config, .. } in updates {
+        let new_config = Config {
+            version: response.new_plugin_version.clone(),
+            ..config.clone()
+        };
+        update_config_toml(config_path, &new_config)
+    }
+
+    Ok(())
+}
+
+#[skyline::main(name = "helios")]
+pub fn main() {
+    let updates = update_discovery().unwrap();
+
+    if updates.is_empty() {
+        println!("[helios] No updates found");
+        return;
+    }
+
+    let update_names = updates.iter().map(|Update { response, .. }| response.plugin_name.clone());
+
+    let lines: Vec<String> = update_names.map(|name| format!("<li>{}</li>", name)).collect();
+    
+    let text = format!("Download the following updates?\n\n<ul style=\"max-height: 250px; overflow: hidden; overflow-y: scroll; text-align: left; display: inline-block;\">{}</ul>", lines.join("\n\n")); 
+
+    if skyline_web::Dialog::yes_no(&text) {
+        // Install updates
+        install(&updates).unwrap();
+        
+        // Update versions
+        update_versions(&updates).unwrap();
+
+        // Restart
+        skyline::nn::oe::RestartProgramNoArgs();
+    }
 }

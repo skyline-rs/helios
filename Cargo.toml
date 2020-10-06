@@ -13,10 +13,8 @@ crate-type = ["cdylib"]
 [dependencies]
 toml = "0.5.6"
 serde = { version = "1", features = ["derive"] }
-update-protocol = { path = "../skyline-update/update-protocol" }
 skyline = { git = "https://github.com/ultimate-research/skyline-rs.git" }
 skyline-web = { path = "../skyline-web" }
-skyline_smash = { git = "https://github.com/ultimate-research/skyline-smash.git" }
 skyline-update = { path = "../skyline-update/skyline-update" }
 
 [profile.dev]

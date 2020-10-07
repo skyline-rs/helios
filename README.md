@@ -1,95 +1,24 @@
-# skyline-rs-template
+# Helios
 
-A template for writing skyline plugins for modding switch games using Rust and skyline-rs.
+A skyline-based plugin for automatically keeping your mods up-to-date. If an update is available, it prompts you to install it on launch.
 
-[Documentation for skyline-rs](https://ultimate-research.github.io/skyline-rs-template/doc/skyline/index.html)
 
-## Setup
+### Usage
 
-### Local
+To create a mod to be updated via Helios, simply create a simple config:
 
-#### Prerequisites
-
-* [Rust](https://www.rust-lang.org/install.html) - make sure rustup, cargo, and rustc (preferrably nightly) are installed.
-* [git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
-
-Install [cargo skyline](https://github.com/jam1garner/cargo-skyline).
-```bash
-# inside a folder where you will dev all of your plugins going forward
-cargo install cargo-skyline
-cargo skyline new [your_plugin_name]
+```toml
+name = "helios_test"
+version = "1.0.0"
+server_ip = "999.999.999.999"
 ```
 
-### VS Code with Docker
+Then name it `[name here].toml` and throw it in `sd:/helios/[title id of game]/`. Helios will automatically keep your config file version up to date.
 
-#### Prerequisites
+Config fields:
 
-* [Docker](https://www.docker.com/get-started)
-* [Visual Studio Code](https://code.visualstudio.com/)
-* [Visual Studio Code Remote Development Extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.vscode-remote-extensionpack)
+* `name` (required) - the name of the plugin as present on the skyline-update server
+* `version` (required) - the version of the plugin being included on the SD card in the form of `MAJOR.MINOR.PATCH`.
+* `server_ip` (required) - the IP address of the server to install the update from. The server should be running skyline-update's update-server.
 
-Simply run `Remote Containers: Reopen in Container` in the Command Palette. 
-
-## Creating and building a plugin
-
-To compile your plugin use the following command in the root of the project (beside the `Cargo.toml` file):
-```sh
-cargo skyline build
-```
-Your resulting plugin will be the `.nro` found in the folder
-```
-[plugin name]/target/aarch64-skyline-switch
-```
-To install (you must already have skyline installed on your switch), put the plugin on your SD at:
-```
-sd:/atmosphere/contents/[title id]/romfs/skyline/plugins
-```
-So, for example, smash plugins go in the following folder:
-```
-sd:/atmosphere/contents/01006A800016E000/romfs/skyline/plugins
-```
-
-`cargo skyline` can also automate some of this process via FTP. If you have an FTP client on your Switch, you can run:
-```sh
-cargo skyline set-ip [Switch IP]
-# install to the correct plugin folder on the Switch and listen for logs
-cargo skyline run 
-```
-
-## Troubleshooting
-
-**"Cannot be used on stable"**
-
-First, make sure you have a nightly installed:
-```
-rustup install nightly
-```
-Second, make sure it is your default channel:
-```
-rustup default nightly
-```
----
-```
-thread 'main' panicked at 'called `Option::unwrap()` on a `None` value', src/bin/cargo-nro.rs:280:13
-note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
-```
-
-Make sure you are *inside* the root of the plugin you created before running `cargo skyline build`
-
-Have a problem/solution that is missing here? Create an issue or a PR!
-
-## Updating
-
-For updating your dependencies such as skyline-rs:
-
-```
-cargo update
-```
-
-For updating your version of `rust-std-skyline-squashed`:
-
-```
-# From inside your plugins folder
-
-cargo skyline self-update
-```
+It is recommended that mod creator's should include the config file with the download itself. This will allow anyone who installs the mod and has helios installed to update the mod without even thinking about it.

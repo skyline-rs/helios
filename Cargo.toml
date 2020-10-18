@@ -14,8 +14,8 @@ crate-type = ["cdylib"]
 toml = "0.5.6"
 serde = { version = "1", features = ["derive"] }
 skyline = { git = "https://github.com/ultimate-research/skyline-rs.git" }
-skyline-web = { path = "../skyline-web" }
-skyline-update = { path = "../skyline-update/skyline-update" }
+skyline-web = { git = "https://github.com/skyline-rs/skyline-web" }
+skyline-update = { git = "https://github.com/skyline-rs/skyline-update" }
 
 [profile.dev]
 panic = "abort"
